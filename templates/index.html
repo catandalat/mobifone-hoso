@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hồ sơ tiếp khách – MobiFone Lâm Đồng</title>
+<style>
+  :root {
+    --mbf-blue: #003087;
+    --mbf-red:  #e4002b;
+    --bg:       #f5f6fa;
+    --card:     #ffffff;
+    --border:   #dde1ec;
+    --text:     #1a1f36;
+    --muted:    #6b7280;
+    --accent:   #0057b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 14px; }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--mbf-blue);
+    color: #fff;
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 12px; }
+  .topbar-logo {
+    width: 36px; height: 36px; background: var(--mbf-red);
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700; color: #fff; line-height: 1.2; text-align: center;
+  }
+  .topbar-title { font-size: 15px; font-weight: 600; }
+  .topbar-sub   { font-size: 11px; opacity: .75; }
+  .topbar-badge {
+    background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3);
+    border-radius: 20px; padding: 4px 12px; font-size: 12px;
+  }
+
+  /* LAYOUT */
+  .container { max-width: 960px; margin: 0 auto; padding: 24px 16px 60px; }
+
+  /* TABS */
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 2px solid var(--border); }
+  .tab-btn {
+    padding: 10px 20px; border: none; background: none; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--muted);
+    border-bottom: 2px solid transparent; margin-bottom: -2px;
+    transition: all .15s;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-btn:hover:not(.active) { color: var(--text); background: rgba(0,0,0,.03); border-radius: 6px 6px 0 0; }
+
+  .tab-pane { display: none; }
+  .tab-pane.active { display: block; }
+
+  /* CARD */
+  .card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px 24px; margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 11px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .07em;
+    margin-bottom: 14px; padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* GRID */
+  .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .g3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .full { grid-column: 1 / -1; }
+
+  /* FIELD */
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label  { font-size: 12px; color: var(--muted); font-weight: 500; }
+  label .req { color: var(--mbf-red); }
+  input, select, textarea {
+    border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 8px 10px; font-size: 13px; color: var(--text);
+    font-family: inherit; background: #fff; transition: border .15s;
+    width: 100%;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none; border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(0,87,184,.1);
+  }
+  textarea { resize: vertical; min-height: 72px; }
+  input[readonly] { background: var(--bg); color: var(--muted); }
+
+  /* SUMMARY CARDS */
+  .sum-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 14px; }
+  .sum-card {
+    background: var(--bg); border-radius: 10px; padding: 12px 14px;
+    border: 1px solid var(--border);
+  }
+  .sum-card .lbl { font-size: 11px; color: var(--muted); }
+  .sum-card .val { font-size: 18px; font-weight: 600; color: var(--text); margin-top: 2px; }
+  .sum-card.highlight .val { color: var(--accent); }
+
+  /* DINHMUC CARD */
+  .dinh-muc-info {
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    border-radius: 10px; padding: 12px 14px; margin-top: 12px;
+    font-size: 12px; color: #1e40af; line-height: 1.7;
+  }
+  .dinh-muc-info strong { color: #1d4ed8; }
+
+  /* GENERATE BUTTON */
+  .btn-gen {
+    width: 100%; padding: 14px; background: var(--mbf-blue);
+    color: #fff; border: none; border-radius: 10px;
+    font-size: 15px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background .15s, transform .1s;
+    margin-top: 8px;
+  }
+  .btn-gen:hover  { background: #002070; }
+  .btn-gen:active { transform: scale(.98); }
+  .btn-gen:disabled { background: #9ca3af; cursor: not-allowed; }
+  .btn-gen .spinner {
+    width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.4);
+    border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite;
+    display: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* RESULT */
+  .result {
+    background: #f0fdf4; border: 1.5px solid #86efac;
+    border-radius: 12px; padding: 20px 24px; margin-top: 16px; display: none;
+  }
+  .result.show { display: block; }
+  .result-title { font-size: 14px; font-weight: 600; color: #15803d; margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px; }
+  .result-icon { font-size: 18px; }
+  .dl-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 20px; background: #16a34a; color: #fff;
+    border-radius: 8px; text-decoration: none; font-size: 13px; font-weight: 600;
+    cursor: pointer; border: none; margin-top: 8px; transition: background .15s;
+  }
+  .dl-btn:hover { background: #15803d; }
+  .result-note { font-size: 12px; color: #166534; margin-top: 8px; line-height: 1.6; }
+
+  /* ERROR */
+  .error-box {
+    background: #fef2f2; border: 1.5px solid #fca5a5;
+    border-radius: 10px; padding: 14px 18px; margin-top: 12px;
+    color: #991b1b; font-size: 13px; display: none;
+  }
+  .error-box.show { display: block; }
+
+  /* RESPONSIVE */
+  @media (max-width: 600px) {
+    .g2, .g3, .sum-grid { grid-template-columns: 1fr; }
+    .topbar-badge { display: none; }
+    .topbar-title { font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand">
+    <div class="topbar-logo">MBF<br>LĐ</div>
+    <div>
+      <div class="topbar-title">Hồ sơ thanh toán tiếp khách</div>
+      <div class="topbar-sub">MobiFone Lâm Đồng</div>
+    </div>
+  </div>
+  <div class="topbar-badge">Tạo file Word tự động</div>
+</div>
+
+<div class="container">
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('thongtin', this)">👤 Thông tin chung</button>
+    <button class="tab-btn"        onclick="switchTab('hoadon',   this)">🧾 Hóa đơn &amp; chi phí</button>
+    <button class="tab-btn"        onclick="switchTab('noidung',  this)">📝 Nội dung tiếp khách</button>
+  </div>
+
+  <!-- TAB 1: THÔNG TIN CHUNG -->
+  <div id="tab-thongtin" class="tab-pane active">
+    <div class="card">
+      <div class="card-title">Thông tin người đề nghị</div>
+      <div class="g2">
+        <div class="field">
+          <label>Họ tên người đề nghị <span class="req">*</span></label>
+          <input type="text" id="ho_ten" placeholder="VD: Hồ Anh Kiệt" value="Hồ Anh Kiệt">
+        </div>
+        <div class="field">
+          <label>Đơn vị / Trung tâm <span class="req">*</span></label>
+          <input type="text" id="don_vi" value="Trung tâm KD Giải pháp số">
+        </div>
+        <div class="field">
+          <label>Lãnh đạo phê duyệt <span class="req">*</span></label>
+          <input type="text" id="lanh_dao" value="Nguyễn Hữu Tân">
+        </div>
+        <div class="field">
+          <label>Chức danh lãnh đạo</label>
+          <input type="text" id="chuc_danh_ld" value="Phụ trách Trung tâm">
+        </div>
+        <div class="field">
+          <label>Giám đốc MobiFone LĐ</label>
+          <input type="text" id="giam_doc" value="Lê Tài">
+        </div>
+        <div class="field">
+          <label>Phụ trách chi phí đơn vị</label>
+          <input type="text" id="phu_trach_cp" value="Lâm Nữ Xuân Miên">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Thời gian &amp; số chứng từ</div>
+      <div class="g3">
+        <div class="field">
+          <label>Ngày tiếp khách <span class="req">*</span></label>
+          <input type="date" id="ngay_tiep_khach" value="2026-03-27">
+        </div>
+        <div class="field">
+          <label>Ngày lập tờ trình</label>
+          <input type="date" id="ngay_to_trinh" value="2026-03-27">
+        </div>
+        <div class="field">
+          <label>Ngày báo cáo KQ</label>
+          <input type="date" id="ngay_bao_cao" value="2026-03-30">
+        </div>
+        <div class="field">
+          <label>Tháng thanh toán</label>
+          <input type="text" id="thang_tt" value="03/2026">
+        </div>
+        <div class="field">
+          <label>Số tờ trình</label>
+          <input type="text" id="so_to_trinh" value="148">
+        </div>
+        <div class="field">
+          <label>Mã KMCP</label>
+          <input type="text" id="ma_kmcp" value="A10C832C02">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 2: HÓA ĐƠN -->
+  <div id="tab-hoadon" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Thông tin hóa đơn</div>
+      <div class="g3">
+        <div class="field">
+          <label>Số hóa đơn <span class="req">*</span></label>
+          <input type="text" id="so_hd" value="1739">
+        </div>
+        <div class="field">
+          <label>Ký hiệu hóa đơn</label>
+          <input type="text" id="ky_hieu_hd" value="1C26MNC">
+        </div>
+        <div class="field">
+          <label>Ngày hóa đơn</label>
+          <input type="date" id="ngay_hd" value="2026-03-27">
+        </div>
+        <div class="field full">
+          <label>Nhà cung cấp</label>
+          <input type="text" id="nha_cung_cap" value="Công ty TNHH Cao Nguyên Food DL">
+        </div>
+        <div class="field">
+          <label>MST nhà cung cấp</label>
+          <input type="text" id="mst_ncc" value="5801567216">
+        </div>
+        <div class="field full">
+          <label>Địa chỉ nhà cung cấp</label>
+          <input type="text" id="dc_ncc" value="32 Trần Phú, Phường Xuân Hương, Đà Lạt, Lâm Đồng">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Số tiền</div>
+      <div class="g3">
+        <div class="field">
+          <label>Tiền trước VAT (đồng) <span class="req">*</span></label>
+          <input type="number" id="truoc_vat" value="1079000" oninput="calcTotal()">
+        </div>
+        <div class="field">
+          <label>Tiền VAT (đồng)</label>
+          <input type="number" id="tien_vat" value="87080" oninput="calcTotal()">
+        </div>
+        <div class="field">
+          <label>Tổng thanh toán (sau VAT)</label>
+          <input type="number" id="sau_vat" readonly>
+        </div>
+      </div>
+      <div class="sum-grid">
+        <div class="sum-card">
+          <div class="lbl">Trước VAT</div>
+          <div class="val" id="d_truoc">1.079.000 đ</div>
+        </div>
+        <div class="sum-card">
+          <div class="lbl">Tiền VAT</div>
+          <div class="val" id="d_vat">87.080 đ</div>
+        </div>
+        <div class="sum-card highlight">
+          <div class="lbl">Tổng thanh toán</div>
+          <div class="val" id="d_sau">1.166.080 đ</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Mã kế toán (bảng kê)</div>
+      <div class="g2">
+        <div class="field">
+          <label>Tài khoản kế toán</label>
+          <input type="text" id="tk_kt" value="64288202">
+        </div>
+        <div class="field">
+          <label>Nghiệp vụ</label>
+          <input type="text" id="nghiep_vu" value="AAAAC02">
+        </div>
+        <div class="field">
+          <label>Mã SPDV</label>
+          <input type="text" id="ma_spdv" value="C188">
+        </div>
+        <div class="field">
+          <label>Quyết định nguồn chi phí</label>
+          <input type="text" id="quyet_dinh_cp" value="71/QĐ-MBF.LĐ-TH ngày 23/01/2026">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 3: NỘI DUNG TIẾP KHÁCH -->
+  <div id="tab-noidung" class="tab-pane">
+    <div class="card">
+      <div class="card-title">Nội dung &amp; thành phần</div>
+      <div class="g2">
+        <div class="field full">
+          <label>Khách mời / đối tác <span class="req">*</span></label>
+          <input type="text" id="khach_moi" value="HKD Coffee Bằng Lăng; Công ty TNHH Viny Build">
+        </div>
+        <div class="field full">
+          <label>Lý do tiếp khách <span class="req">*</span></label>
+          <textarea id="ly_do">Tư vấn giới thiệu các sản phẩm, giải pháp của MobiFone như giải pháp 1POS và hóa đơn điện tử cho Doanh nghiệp. Đồng thời mở rộng mạng lưới đối tác và kênh phân phối với MobiFone</textarea>
+        </div>
+        <div class="field full">
+          <label>Kết quả đạt được (báo cáo KQCV)</label>
+          <textarea id="ket_qua">MobiFone bước đầu tiếp cận, trao đổi thông tin, mở ra cơ hội phối hợp, làm việc trong việc triển khai các hạng mục mới với các Doanh nghiệp</textarea>
+        </div>
+      </div>
+      <div class="g3" style="margin-top:12px">
+        <div class="field">
+          <label>Số LĐ MBF tham dự</label>
+          <input type="number" id="sl_ld" value="1" min="0" oninput="updateNguoi()">
+        </div>
+        <div class="field">
+          <label>Số chuyên viên MBF</label>
+          <input type="number" id="sl_cv" value="1" min="0" oninput="updateNguoi()">
+        </div>
+        <div class="field">
+          <label>Số khách mời</label>
+          <input type="number" id="sl_khach" value="2" min="0" oninput="updateNguoi()">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Kiểm tra định mức — QĐ 459/QĐ-D01</div>
+      <div class="sum-grid">
+        <div class="sum-card">
+          <div class="lbl">Tổng người tham dự</div>
+          <div class="val" id="d_tong_nguoi">4 người</div>
+        </div>
+        <div class="sum-card">
+          <div class="lbl">TB/người (trước VAT)</div>
+          <div class="val" id="d_tb">— đ</div>
+        </div>
+        <div class="sum-card">
+          <div class="lbl">Trạng thái định mức</div>
+          <div class="val" id="d_status" style="font-size:13px">—</div>
+        </div>
+      </div>
+      <div class="dinh-muc-info">
+        <strong>Định mức tiếp khách theo QĐ 459:</strong><br>
+        • Chi phí tiếp khách: thanh toán theo thực tế, có hóa đơn hợp lệ<br>
+        • Phụ cấp lưu trú nội tỉnh (đi về trong ngày, cách &gt;70km): <strong>180.000đ/người/ngày</strong><br>
+        • Phụ cấp lưu trú qua đêm: <strong>300.000đ/người/ngày</strong><br>
+        • Đơn vị tỉnh, thành phố (Lâm Đồng): áp dụng mức tỉnh
+      </div>
+    </div>
+  </div>
+
+  <!-- NÚT TẠO FILE -->
+  <button class="btn-gen" id="btn_gen" onclick="generateDocs()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btn_text">⬇ Tạo và tải về bộ hồ sơ (.zip)</span>
+  </button>
+
+  <!-- KẾT QUẢ -->
+  <div class="result" id="result_box">
+    <div class="result-title">
+      <span class="result-icon">✅</span> Hồ sơ đã được tạo thành công!
+    </div>
+    <div class="result-note">
+      File ZIP chứa 4 văn bản: <strong>Tờ trình</strong>, <strong>Giấy đề nghị tiếp khách</strong>,
+      <strong>Bảng kê</strong>, <strong>Báo cáo KQCV</strong>. Mở file .docx, in và ký tươi.
+    </div>
+  </div>
+
+  <!-- LỖI -->
+  <div class="error-box" id="error_box"></div>
+
+</div>
+
+<script>
+function switchTab(id, el) {
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  el.classList.add('active');
+}
+
+function fmt(n) {
+  return Number(n).toLocaleString('vi-VN') + ' đ';
+}
+
+function calcTotal() {
+  const a = parseFloat(document.getElementById('truoc_vat').value) || 0;
+  const b = parseFloat(document.getElementById('tien_vat').value) || 0;
+  const c = a + b;
+  document.getElementById('sau_vat').value = c;
+  document.getElementById('d_truoc').textContent = fmt(a);
+  document.getElementById('d_vat').textContent   = fmt(b);
+  document.getElementById('d_sau').textContent   = fmt(c);
+  updateNguoi();
+}
+
+function updateNguoi() {
+  const ld = parseInt(document.getElementById('sl_ld').value) || 0;
+  const cv = parseInt(document.getElementById('sl_cv').value) || 0;
+  const kh = parseInt(document.getElementById('sl_khach').value) || 0;
+  const tong = ld + cv + kh;
+  const truoc = parseFloat(document.getElementById('truoc_vat').value) || 0;
+  document.getElementById('d_tong_nguoi').textContent = tong + ' người';
+  if (tong > 0) {
+    const tb = Math.round(truoc / tong);
+    document.getElementById('d_tb').textContent = fmt(tb);
+    // Không có định mức cứng cho tiếp khách theo QĐ 459 (thanh toán thực tế)
+    document.getElementById('d_status').textContent = tb > 0 ? '✔ Có hóa đơn' : '—';
+    document.getElementById('d_status').style.color = tb > 0 ? '#16a34a' : '#6b7280';
+  }
+}
+
+function g(id) { return (document.getElementById(id) || {}).value || ''; }
+
+async function generateDocs() {
+  const btn = document.getElementById('btn_gen');
+  const spinner = document.getElementById('spinner');
+  const btnText = document.getElementById('btn_text');
+  const resultBox = document.getElementById('result_box');
+  const errorBox  = document.getElementById('error_box');
+
+  // Validate
+  const required = ['ho_ten','lanh_dao','ngay_tiep_khach','truoc_vat','khach_moi'];
+  for (const id of required) {
+    if (!g(id)) {
+      errorBox.textContent = 'Vui lòng điền đầy đủ các trường bắt buộc (có dấu *).';
+      errorBox.classList.add('show');
+      return;
+    }
+  }
+  errorBox.classList.remove('show');
+  resultBox.classList.remove('show');
+
+  btn.disabled = true;
+  spinner.style.display = 'block';
+  btnText.textContent = 'Đang tạo hồ sơ...';
+
+  const payload = {
+    ho_ten: g('ho_ten'), don_vi: g('don_vi'), lanh_dao: g('lanh_dao'),
+    chuc_danh_ld: g('chuc_danh_ld'), giam_doc: g('giam_doc'),
+    phu_trach_cp: g('phu_trach_cp'),
+    ngay_tiep_khach: g('ngay_tiep_khach'), ngay_to_trinh: g('ngay_to_trinh'),
+    ngay_bao_cao: g('ngay_bao_cao'), ngay_hd: g('ngay_hd'),
+    thang_tt: g('thang_tt'), so_to_trinh: g('so_to_trinh'), ma_kmcp: g('ma_kmcp'),
+    so_hd: g('so_hd'), ky_hieu_hd: g('ky_hieu_hd'),
+    nha_cung_cap: g('nha_cung_cap'), mst_ncc: g('mst_ncc'), dc_ncc: g('dc_ncc'),
+    truoc_vat: parseInt(g('truoc_vat')) || 0,
+    tien_vat:  parseInt(g('tien_vat'))  || 0,
+    tk_kt: g('tk_kt'), nghiep_vu: g('nghiep_vu'),
+    ma_spdv: g('ma_spdv'), quyet_dinh_cp: g('quyet_dinh_cp'),
+    khach_moi: g('khach_moi'), ly_do: g('ly_do'), ket_qua: g('ket_qua'),
+    sl_ld: parseInt(g('sl_ld')) || 0,
+    sl_cv: parseInt(g('sl_cv')) || 0,
+    sl_khach: parseInt(g('sl_khach')) || 0,
+  };
+
+  try {
+    const resp = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: 'Lỗi không xác định' }));
+      throw new Error(err.error || `HTTP ${resp.status}`);
+    }
+    const blob = await resp.blob();
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const thang = g('thang_tt').replace('/','_') || 'HoSo';
+    a.href = url;
+    a.download = `HoSoTiepKhach_${thang}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    resultBox.classList.add('show');
+  } catch (e) {
+    errorBox.textContent = 'Lỗi: ' + e.message;
+    errorBox.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    spinner.style.display = 'none';
+    btnText.textContent = '⬇ Tạo và tải về bộ hồ sơ (.zip)';
+  }
+}
+
+// Init
+calcTotal();
+updateNguoi();
+</script>
+</body>
+</html>
