@@ -116,13 +116,76 @@ NỘI DUNG HÓA ĐƠN:
         return jsonify({"error": f"Lỗi Claude API: {str(e)}"}), 500
 
 
+@app.route("/api/gdt-link", methods=["POST"])
+def gdt_link():
+    """Tạo link tra cứu hóa đơn trên hoadondientu.gdt.gov.vn từ thông tin hóa đơn."""
+    d = request.json or {}
+    mst     = d.get("mst_ncc", "").strip()
+    so_hd   = d.get("so_hd", "").strip().lstrip("0")   # bỏ số 0 đầu
+    ky_hieu = d.get("ky_hieu_hd", "").strip()
+    ngay    = d.get("ngay_hd", "").strip()             # YYYY-MM-DD
+
+    # Định dạng ngày GDT cần: dd/MM/yyyy
+    ngay_gdt = ""
+    try:
+        from datetime import datetime as dt
+        ngay_gdt = dt.strptime(ngay, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except Exception:
+        ngay_gdt = ngay
+
+    # Link tra cứu trực tiếp GDT
+    # Tham số: nbmst (MST người bán), khhdon (ký hiệu), shdon (số HĐ), ntao (ngày tạo)
+    import urllib.parse
+    params = urllib.parse.urlencode({
+        "nbmst": mst,
+        "khhdon": ky_hieu,
+        "shdon": so_hd,
+        "ntao": ngay_gdt,
+    })
+    link = f"https://hoadondientu.gdt.gov.vn?{params}#/tra-cuu/tra-cuu-hoa-don-mua-vao"
+
+    return jsonify({
+        "ok": True,
+        "link": link,
+        "huong_dan": [
+            "Mở link tra cứu bên dưới trong trình duyệt",
+            "Nhập captcha và nhấn Tìm kiếm",
+            "Nhấn Ctrl+P (Windows) hoặc Cmd+P (Mac) → chọn Save as PDF",
+            "Upload file PDF vừa lưu lên ô bên dưới",
+        ]
+    })
+
+
 @app.route("/api/generate", methods=["POST"])
 def generate_docs():
-    data = request.json
+    """
+    Nhận multipart/form-data:
+    - 'data'        : JSON string chứa tất cả trường form
+    - 'invoice_pdf' : file PDF hóa đơn gốc (tùy chọn)
+    - 'tracuu_pdf'  : file PDF kết quả tra cứu GDT (tùy chọn)
+    """
+    # Đọc JSON từ form field 'data' hoặc request body
+    if request.content_type and "multipart" in request.content_type:
+        raw_data = request.form.get("data", "{}")
+        try:
+            data = json.loads(raw_data)
+        except Exception:
+            return jsonify({"error": "Dữ liệu JSON không hợp lệ"}), 400
+        invoice_pdf_file = request.files.get("invoice_pdf")
+        tracuu_pdf_file  = request.files.get("tracuu_pdf")
+    else:
+        data = request.json or {}
+        invoice_pdf_file = None
+        tracuu_pdf_file  = None
+
     if not data:
         return jsonify({"error": "Không có dữ liệu"}), 400
 
-    # Chuẩn bị context chung
+    # Đọc bytes PDF nếu có
+    invoice_pdf_bytes = invoice_pdf_file.read() if invoice_pdf_file else None
+    tracuu_pdf_bytes  = tracuu_pdf_file.read()  if tracuu_pdf_file  else None
+
+    # ── Chuẩn bị context ─────────────────────────────────────────────────────
     truoc_vat = int(data.get("truoc_vat", 0))
     tien_vat  = int(data.get("tien_vat", 0))
     sau_vat   = truoc_vat + tien_vat
@@ -131,14 +194,12 @@ def generate_docs():
     sl_khach  = int(data.get("sl_khach", 0))
 
     ctx = {
-        # Người đề nghị
         "ho_ten":           data.get("ho_ten", ""),
         "don_vi":           data.get("don_vi", ""),
         "lanh_dao":         data.get("lanh_dao", ""),
         "chuc_danh_ld":     data.get("chuc_danh_ld", ""),
         "giam_doc":         data.get("giam_doc", ""),
         "phu_trach_cp":     data.get("phu_trach_cp", ""),
-        # Thời gian
         "ngay_tiep_khach":  format_date(data.get("ngay_tiep_khach", "")),
         "ngay_to_trinh":    format_date(data.get("ngay_to_trinh", "")),
         "ngay_bao_cao":     format_date(data.get("ngay_bao_cao", "")),
@@ -146,13 +207,11 @@ def generate_docs():
         "thang_tt":         data.get("thang_tt", ""),
         "so_to_trinh":      data.get("so_to_trinh", ""),
         "ma_kmcp":          data.get("ma_kmcp", ""),
-        # Hóa đơn
         "so_hd":            data.get("so_hd", ""),
         "ky_hieu_hd":       data.get("ky_hieu_hd", ""),
         "nha_cung_cap":     data.get("nha_cung_cap", ""),
         "mst_ncc":          data.get("mst_ncc", ""),
         "dc_ncc":           data.get("dc_ncc", ""),
-        # Tiền
         "truoc_vat":        format_currency(truoc_vat),
         "tien_vat":         format_currency(tien_vat),
         "sau_vat":          format_currency(sau_vat),
@@ -161,12 +220,10 @@ def generate_docs():
         "sau_vat_raw":      sau_vat,
         "tien_bang_chu":    so_tien_bang_chu(truoc_vat),
         "tong_bang_chu":    so_tien_bang_chu(sau_vat),
-        # Kế toán
         "tk_kt":            data.get("tk_kt", ""),
         "nghiep_vu":        data.get("nghiep_vu", ""),
         "ma_spdv":          data.get("ma_spdv", ""),
         "quyet_dinh_cp":    data.get("quyet_dinh_cp", ""),
-        # Nội dung tiếp khách
         "khach_moi":        data.get("khach_moi", ""),
         "ly_do":            data.get("ly_do", ""),
         "ket_qua":          data.get("ket_qua", ""),
@@ -174,7 +231,6 @@ def generate_docs():
         "sl_cv":            sl_cv,
         "sl_khach":         sl_khach,
         "tong_nguoi":       sl_ld + sl_cv + sl_khach,
-        # Ngày dạng số riêng (cho các văn bản cần dd/mm/yyyy)
         "ngay_tk_so":       _day(data.get("ngay_tiep_khach", "")),
         "thang_tk_so":      _month(data.get("ngay_tiep_khach", "")),
         "nam_tk_so":        _year(data.get("ngay_tiep_khach", "")),
@@ -186,29 +242,65 @@ def generate_docs():
         "nam_bc_so":        _year(data.get("ngay_bao_cao", "")),
     }
 
-    # Danh sách file cần tạo
+    # ── Tạo ZIP ───────────────────────────────────────────────────────────────
+    thang = data.get("thang_tt", "").replace("/", "_")
+    so_hd_str = data.get("so_hd", "HĐ")
+
     templates = [
-        ("to_trinh.docx",        "2_TờTrình_TiếpKhách.docx"),
-        ("giay_de_nghi.docx",    "3_GiấyĐềNghịTiếpKhách.docx"),
-        ("bang_ke.docx",         "4_BảngKê.docx"),
-        ("bao_cao_kqcv.docx",    "5_BáoCáoKQCV.docx"),
+        ("to_trinh.docx",        "VanBan/2_TờTrình_TiếpKhách.docx"),
+        ("giay_de_nghi.docx",    "VanBan/3_GiấyĐềNghịTiếpKhách.docx"),
+        ("bang_ke.docx",         "VanBan/4_BảngKê.docx"),
+        ("bao_cao_kqcv.docx",    "VanBan/5_BáoCáoKQCV.docx"),
     ]
 
     zip_buffer = io.BytesIO()
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+
+        # ── 1. Các file Word ──────────────────────────────────────────────────
         for tpl_name, out_name in templates:
             tpl_path = os.path.join(TEMPLATE_DIR, tpl_name)
             if not os.path.exists(tpl_path):
                 continue
             doc = DocxTemplate(tpl_path)
             doc.render(ctx)
-            doc_buffer = io.BytesIO()
-            doc.save(doc_buffer)
-            doc_buffer.seek(0)
-            zf.writestr(out_name, doc_buffer.read())
+            buf = io.BytesIO()
+            doc.save(buf)
+            buf.seek(0)
+            zf.writestr(out_name, buf.read())
+
+        # ── 2. PDF hóa đơn gốc ───────────────────────────────────────────────
+        if invoice_pdf_bytes:
+            inv_name = f"HoaDon/1_HoaDon_{so_hd_str}_{thang}.pdf"
+            zf.writestr(inv_name, invoice_pdf_bytes)
+
+        # ── 3. PDF tra cứu GDT ───────────────────────────────────────────────
+        if tracuu_pdf_bytes:
+            tc_name = f"HoaDon/1_TraCuu_GDT_{so_hd_str}_{thang}.pdf"
+            zf.writestr(tc_name, tracuu_pdf_bytes)
+
+        # ── 4. Ghi chú README.txt ─────────────────────────────────────────────
+        readme = f"""BỘ HỒ SƠ THANH TOÁN TIẾP KHÁCH
+Tháng: {data.get('thang_tt','')} | Số HĐ: {so_hd_str}
+Người đề nghị: {data.get('ho_ten','')}
+Nhà cung cấp: {data.get('nha_cung_cap','')}
+Tổng thanh toán: {format_currency(sau_vat)} đồng
+
+Cấu trúc hồ sơ:
+  HoaDon/
+    1_HoaDon_...pdf        -- PDF hóa đơn gốc
+    1_TraCuu_GDT_...pdf    -- Kết quả tra cứu hoadondientu.gdt.gov.vn
+  VanBan/
+    2_TờTrình_...docx
+    3_GiấyĐềNghị_...docx
+    4_BảngKê_...docx
+    5_BáoCáoKQCV_...docx
+
+Tạo bởi: Hệ thống hồ sơ MobiFone Lâm Đồng
+"""
+        zf.writestr("README.txt", readme.encode("utf-8"))
 
     zip_buffer.seek(0)
-    filename = f"HoSoTiepKhach_{data.get('thang_tt','').replace('/','_')}.zip"
+    filename = f"HoSoTiepKhach_{thang}.zip"
     return send_file(
         zip_buffer,
         mimetype="application/zip",

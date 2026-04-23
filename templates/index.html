@@ -164,7 +164,15 @@
     .topbar-title { font-size: 13px; }
   }
 
-  /* PDF UPLOAD ZONE */
+  /* GDT BUTTON */
+  .btn-gdt {
+    padding: 9px 18px; background: #1e40af; color: #fff;
+    border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: background .15s;
+  }
+  .btn-gdt:hover { background: #1e3a8a; }
+
+
   .upload-zone {
     border: 2px dashed var(--border); border-radius: 12px;
     padding: 24px; text-align: center; cursor: pointer;
@@ -420,6 +428,127 @@
         </div>
       </div>
     </div>
+
+    <!-- TRA CỨU GDT IFRAME -->
+    <div class="card" id="card_tracuu">
+      <div class="card-title">Tra cứu & xác minh hóa đơn — hoadondientu.gdt.gov.vn</div>
+
+      <!-- Bước 1: Nút mở iframe -->
+      <div id="gdt_step1">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.8">
+          Nhấn nút bên dưới để mở trang tra cứu ngay tại đây. Sau khi tìm thấy hóa đơn,
+          nhấn <strong style="color:var(--text)">Lưu kết quả tra cứu</strong> để đính kèm vào hồ sơ.
+        </div>
+        <button class="btn-gdt" id="btn_open_iframe" onclick="openGdtIframe()">
+          Mở trang tra cứu hóa đơn GDT
+        </button>
+        <div id="gdt_prefill_note" style="display:none;margin-top:8px;font-size:12px;
+             color:#16a34a;background:#f0fdf4;padding:8px 10px;border-radius:6px;
+             border:1px solid #86efac">
+          ✓ Đã điền sẵn: MST <strong id="note_mst"></strong> · Số HĐ <strong id="note_shd"></strong>
+          · Ký hiệu <strong id="note_kh"></strong>
+        </div>
+      </div>
+
+      <!-- Bước 2: iframe container -->
+      <div id="gdt_iframe_wrap" style="display:none;margin-top:14px">
+
+        <!-- Toolbar trên iframe -->
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    background:var(--bg);border:1px solid var(--border);
+                    border-bottom:none;border-radius:10px 10px 0 0;
+                    padding:8px 12px;gap:10px;flex-wrap:wrap">
+          <div style="display:flex;align-items:center;gap:8px;min-width:0;flex:1">
+            <div style="width:8px;height:8px;border-radius:50%;background:#16a34a;flex-shrink:0"></div>
+            <span style="font-size:12px;color:var(--muted);white-space:nowrap">hoadondientu.gdt.gov.vn</span>
+            <span id="iframe_status" style="font-size:11px;color:var(--muted)"></span>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button onclick="reloadIframe()"
+                    style="font-size:12px;padding:5px 10px;background:none;
+                           border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text)">
+              ↺ Tải lại
+            </button>
+            <button onclick="toggleIframeSize()"  id="btn_resize"
+                    style="font-size:12px;padding:5px 10px;background:none;
+                           border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--text)">
+              ⤢ Phóng to
+            </button>
+            <button onclick="captureAndSave()" id="btn_capture"
+                    style="font-size:12px;padding:5px 12px;background:#16a34a;color:#fff;
+                           border:none;border-radius:6px;cursor:pointer;font-weight:600">
+              📥 Lưu kết quả tra cứu
+            </button>
+            <button onclick="closeGdtIframe()"
+                    style="font-size:12px;padding:5px 10px;background:none;
+                           border:1px solid var(--border);border-radius:6px;cursor:pointer;color:#991b1b">
+              ✕ Đóng
+            </button>
+          </div>
+        </div>
+
+        <!-- iframe thật -->
+        <iframe id="gdt_iframe"
+                src="about:blank"
+                style="width:100%;height:600px;border:1px solid var(--border);
+                       border-radius:0 0 10px 10px;background:#fff"
+                sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals">
+        </iframe>
+
+        <!-- Fallback nếu iframe bị block -->
+        <div id="iframe_blocked" style="display:none;margin-top:10px;padding:12px 14px;
+             background:#fef3c7;border:1px solid #fcd34d;border-radius:8px;
+             font-size:12px;color:#92400e;line-height:1.8">
+          <strong>Trang GDT chặn hiển thị trong iframe.</strong><br>
+          Hãy dùng cách thủ công:
+          <a id="gdt_fallback_link" href="#" target="_blank"
+             style="color:#1d4ed8;font-weight:600">Mở trang GDT trong tab mới</a>
+          → tra cứu → <kbd style="background:#e5e7eb;padding:1px 5px;border-radius:3px">Ctrl+P</kbd>
+          → Save as PDF → upload dưới đây.
+          <div style="margin-top:10px">
+            <div class="upload-zone" id="tracuu_fallback_zone" style="padding:14px"
+                 ondragover="event.preventDefault();this.classList.add('drag-over')"
+                 ondragleave="this.classList.remove('drag-over')"
+                 ondrop="handleTracuuDrop(event)">
+              <input type="file" accept=".pdf" id="tracuu_input" onchange="handleTracuuSelect(event)">
+              <div style="font-size:13px;color:var(--muted)">Upload PDF tra cứu GDT</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Hướng dẫn capture -->
+        <div id="capture_guide" style="margin-top:10px;font-size:12px;color:var(--muted);
+             line-height:1.8;background:var(--bg);padding:10px 12px;border-radius:8px;
+             border:1px solid var(--border)">
+          <strong style="color:var(--text)">Hướng dẫn:</strong>
+          Nhập MST người bán + số hóa đơn + captcha → Tìm kiếm →
+          khi thấy kết quả hóa đơn, nhấn
+          <strong style="color:#16a34a">📥 Lưu kết quả tra cứu</strong> ở trên.
+          Hệ thống sẽ tự chụp và lưu vào hồ sơ.
+        </div>
+      </div>
+
+      <!-- Bước 3: Đã lưu thành công -->
+      <div id="gdt_saved_wrap" style="display:none;margin-top:12px">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;
+             background:#f0fdf4;border:1px solid #86efac;border-radius:10px">
+          <span style="font-size:20px">✅</span>
+          <div style="flex:1">
+            <div style="font-size:13px;font-weight:600;color:#15803d">
+              Đã lưu kết quả tra cứu GDT
+            </div>
+            <div style="font-size:12px;color:#166534;margin-top:2px">
+              Sẽ được đính kèm vào ZIP khi tạo hồ sơ
+            </div>
+          </div>
+          <button onclick="resetTracuu()"
+                  style="font-size:12px;padding:5px 10px;background:none;
+                         border:1px solid #86efac;border-radius:6px;cursor:pointer;color:#15803d">
+            Chụp lại
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- TAB 3: NỘI DUNG TIẾP KHÁCH -->
@@ -505,7 +634,214 @@
 </div>
 
 <script>
-// ── PDF Upload & AI Reading ───────────────────────────────────────────────────
+// ── GDT iframe tra cứu ───────────────────────────────────────────────────────
+let _tracuuFile   = null;
+let _tracuuBlob   = null;   // blob chụp từ iframe
+let _gdtLink      = '';
+let _iframeExpand = false;
+
+function openGdtIframe() {
+  const mst    = g('mst_ncc');
+  const soHd   = g('so_hd');
+  const kyHieu = g('ky_hieu_hd');
+  const ngay   = g('ngay_hd');
+
+  // Build GDT URL với tham số điền sẵn
+  const params = new URLSearchParams({ nbmst: mst, khhdon: kyHieu, shdon: soHd });
+  if (ngay) {
+    const [y,m,d] = ngay.split('-');
+    if (y&&m&&d) params.set('ntao', `${d}/${m}/${y}`);
+  }
+  _gdtLink = `https://hoadondientu.gdt.gov.vn?${params}#/tra-cuu/tra-cuu-hoa-don-mua-vao`;
+
+  // Hiện note điền sẵn
+  if (mst || soHd) {
+    document.getElementById('gdt_prefill_note').style.display = 'block';
+    document.getElementById('note_mst').textContent  = mst  || '—';
+    document.getElementById('note_shd').textContent  = soHd || '—';
+    document.getElementById('note_kh').textContent   = kyHieu || '—';
+  }
+
+  // Load iframe
+  const iframe = document.getElementById('gdt_iframe');
+  iframe.src   = _gdtLink;
+  document.getElementById('gdt_iframe_wrap').style.display = 'block';
+  document.getElementById('gdt_step1').style.display = 'none';
+  document.getElementById('iframe_status').textContent = 'Đang tải...';
+
+  iframe.onload = () => {
+    document.getElementById('iframe_status').textContent = '';
+    // Kiểm tra iframe có load được không
+    try {
+      const _ = iframe.contentWindow.location.href;
+    } catch(e) {
+      // Cross-origin OK - GDT loaded
+    }
+  };
+
+  // Fallback: nếu 8 giây không có gì hiện -> hiện fallback upload
+  setTimeout(() => {
+    const iframeDoc = (() => {
+      try { return iframe.contentDocument; } catch(e) { return null; }
+    })();
+    // Nếu iframe trắng (về:blank hoặc error) thì hiện fallback
+    if (!iframeDoc || iframeDoc.body?.innerHTML === '') {
+      document.getElementById('iframe_blocked').style.display = 'block';
+      document.getElementById('gdt_fallback_link').href = _gdtLink;
+    }
+  }, 8000);
+}
+
+function reloadIframe() {
+  const iframe = document.getElementById('gdt_iframe');
+  iframe.src = _gdtLink;
+  document.getElementById('iframe_status').textContent = 'Đang tải...';
+  setTimeout(() => document.getElementById('iframe_status').textContent = '', 3000);
+}
+
+function toggleIframeSize() {
+  _iframeExpand = !_iframeExpand;
+  const iframe = document.getElementById('gdt_iframe');
+  iframe.style.height = _iframeExpand ? '90vh' : '600px';
+  document.getElementById('btn_resize').textContent = _iframeExpand ? '⤡ Thu nhỏ' : '⤢ Phóng to';
+  if (_iframeExpand) iframe.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function closeGdtIframe() {
+  document.getElementById('gdt_iframe').src = 'about:blank';
+  document.getElementById('gdt_iframe_wrap').style.display = 'none';
+  document.getElementById('gdt_step1').style.display = 'block';
+  document.getElementById('iframe_blocked').style.display = 'none';
+}
+
+async function captureAndSave() {
+  const btn = document.getElementById('btn_capture');
+  btn.textContent = '⏳ Đang chụp...';
+  btn.disabled    = true;
+
+  try {
+    const iframe = document.getElementById('gdt_iframe');
+
+    // Thử dùng html2canvas trên iframe content (chỉ work nếu same-origin)
+    // GDT là cross-origin nên dùng print-to-PDF approach thay thế
+    // Cách thực tế nhất: mở print dialog của iframe
+    try {
+      iframe.contentWindow.print();
+      // Hiện hướng dẫn save as PDF
+      showCaptureTip();
+    } catch(e) {
+      // Cross-origin: fallback sang Ctrl+P hướng dẫn
+      showCaptureTip();
+    }
+  } finally {
+    btn.textContent = '📥 Lưu kết quả tra cứu';
+    btn.disabled    = false;
+  }
+}
+
+function showCaptureTip() {
+  // Hiện modal overlay hướng dẫn lưu PDF
+  const overlay = document.createElement('div');
+  overlay.id = 'print_overlay';
+  overlay.style.cssText = `
+    position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;
+    display:flex;align-items:center;justify-content:center;padding:20px
+  `;
+  overlay.innerHTML = `
+    <div style="background:var(--card);border-radius:16px;padding:28px 32px;
+                max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+      <div style="font-size:18px;font-weight:600;color:var(--text);margin-bottom:8px">
+        Lưu kết quả tra cứu thành PDF
+      </div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.9;margin-bottom:20px">
+        Hộp thoại in vừa mở. Thực hiện theo các bước:
+        <ol style="margin:10px 0 0 16px;color:var(--text)">
+          <li>Chọn <strong>Save as PDF</strong> (hoặc Microsoft Print to PDF)</li>
+          <li>Nhấn <strong>Save / Lưu</strong></li>
+          <li>Upload file PDF vừa lưu vào ô bên dưới</li>
+        </ol>
+      </div>
+      <div class="upload-zone" style="padding:18px;margin-bottom:16px"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleTracuuDropOverlay(event,this)">
+        <input type="file" accept=".pdf" style="position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%"
+               onchange="handleTracuuOverlaySelect(event)">
+        <div style="font-size:13px;font-weight:500;color:var(--muted)">
+          Kéo thả hoặc click chọn PDF tra cứu
+        </div>
+      </div>
+      <button onclick="document.getElementById('print_overlay').remove()"
+              style="width:100%;padding:10px;background:var(--bg);border:1px solid var(--border);
+                     border-radius:8px;cursor:pointer;font-size:13px;color:var(--muted)">
+        Bỏ qua (không đính kèm PDF tra cứu)
+      </button>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  // Click outside để đóng
+  overlay.addEventListener('click', e => { if(e.target === overlay) overlay.remove(); });
+}
+
+function handleTracuuDropOverlay(e, zone) {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') saveTracuuFile(file);
+}
+
+function handleTracuuOverlaySelect(e) {
+  const file = e.target.files[0];
+  if (file) saveTracuuFile(file);
+}
+
+function saveTracuuFile(file) {
+  _tracuuFile = file;
+  // Đóng overlay nếu có
+  const ov = document.getElementById('print_overlay');
+  if (ov) ov.remove();
+  // Đóng iframe, hiện trạng thái saved
+  closeGdtIframe();
+  document.getElementById('gdt_saved_wrap').style.display = 'block';
+}
+
+function resetTracuu() {
+  _tracuuFile = null;
+  _tracuuBlob = null;
+  document.getElementById('gdt_saved_wrap').style.display = 'none';
+  document.getElementById('gdt_step1').style.display = 'block';
+}
+
+// Fallback drop/select (upload thủ công)
+function handleTracuuDrop(e) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') saveTracuuFile(file);
+  else alert('Vui lòng chọn file PDF.');
+}
+
+function handleTracuuSelect(e) {
+  const file = e.target.files[0];
+  if (file) saveTracuuFile(file);
+}
+
+// Giữ lại copyGdtLink cho fallback
+function copyGdtLink() {
+  if (!_gdtLink) return;
+  navigator.clipboard.writeText(_gdtLink).then(() => {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = 'Đã sao chép!';
+    setTimeout(() => btn.textContent = old, 2000);
+  });
+}
+
+// Xóa hàm cũ không dùng nữa
+function clearTracuu() { resetTracuu(); }
+function generateGdtLink() { openGdtIframe(); }
+
+
 let _selectedFile = null;
 
 function handleDrop(e) {
@@ -658,13 +994,13 @@ function updateNguoi() {
 function g(id) { return (document.getElementById(id) || {}).value || ''; }
 
 async function generateDocs() {
-  const btn = document.getElementById('btn_gen');
-  const spinner = document.getElementById('spinner');
-  const btnText = document.getElementById('btn_text');
-  const resultBox = document.getElementById('result_box');
-  const errorBox  = document.getElementById('error_box');
+  const btn      = document.getElementById('btn_gen');
+  const spinner  = document.getElementById('spinner');
+  const btnText  = document.getElementById('btn_text');
+  const resultBox= document.getElementById('result_box');
+  const errorBox = document.getElementById('error_box');
 
-  // Validate
+  // Validate bắt buộc
   const required = ['ho_ten','lanh_dao','ngay_tiep_khach','truoc_vat','khach_moi'];
   for (const id of required) {
     if (!g(id)) {
@@ -700,15 +1036,26 @@ async function generateDocs() {
   };
 
   try {
-    const resp = await fetch('/api/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    // Gửi multipart/form-data để kèm PDF files
+    const formData = new FormData();
+    formData.append('data', JSON.stringify(payload));
+
+    // Đính kèm PDF hóa đơn gốc (nếu có)
+    if (_selectedFile) {
+      formData.append('invoice_pdf', _selectedFile);
+    }
+    // Đính kèm PDF tra cứu GDT (nếu có)
+    if (_tracuuFile) {
+      formData.append('tracuu_pdf', _tracuuFile);
+    }
+
+    const resp = await fetch('/api/generate', { method: 'POST', body: formData });
+
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({ error: 'Lỗi không xác định' }));
       throw new Error(err.error || `HTTP ${resp.status}`);
     }
+
     const blob = await resp.blob();
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -719,7 +1066,17 @@ async function generateDocs() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+
+    // Cập nhật message kết quả
+    const parts = ['4 file Word'];
+    if (_selectedFile) parts.push('PDF hóa đơn gốc');
+    if (_tracuuFile)   parts.push('PDF tra cứu GDT');
+    document.querySelector('#result_box .result-note').innerHTML =
+      `File ZIP chứa: <strong>${parts.join(', ')}</strong>.<br>
+       Cấu trúc: <code>HoaDon/</code> (PDF) + <code>VanBan/</code> (Word). Mở .docx, in và ký tươi.`;
+
     resultBox.classList.add('show');
+
   } catch (e) {
     errorBox.textContent = 'Lỗi: ' + e.message;
     errorBox.classList.add('show');
