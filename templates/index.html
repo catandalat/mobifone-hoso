@@ -163,6 +163,54 @@
     .topbar-badge { display: none; }
     .topbar-title { font-size: 13px; }
   }
+
+  /* PDF UPLOAD ZONE */
+  .upload-zone {
+    border: 2px dashed var(--border); border-radius: 12px;
+    padding: 24px; text-align: center; cursor: pointer;
+    transition: all .2s; background: var(--bg); margin-bottom: 16px;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent); background: #eff6ff;
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-title { font-size: 14px; font-weight: 600; color: var(--text); }
+  .upload-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* AI READING STATE */
+  .ai-reading {
+    display: none; align-items: center; gap: 10px;
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 12px;
+    font-size: 13px; color: #1e40af;
+  }
+  .ai-reading.show { display: flex; }
+  .ai-spin {
+    width: 16px; height: 16px; border: 2px solid #bfdbfe;
+    border-top-color: #1e40af; border-radius: 50%;
+    animation: spin .7s linear infinite; flex-shrink: 0;
+  }
+
+  /* AI SUCCESS BANNER */
+  .ai-success {
+    display: none; align-items: center; gap: 8px;
+    background: #f0fdf4; border: 1px solid #86efac;
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 12px;
+    font-size: 13px; color: #15803d; font-weight: 500;
+  }
+  .ai-success.show { display: flex; }
+
+  /* FILE TAG */
+  .file-tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: #e0e7ff; color: #3730a3; border-radius: 6px;
+    padding: 4px 10px; font-size: 12px; font-weight: 500; margin-top: 8px;
+  }
+  .file-tag-rm { cursor: pointer; color: #6366f1; font-size: 14px; line-height: 1; }
 </style>
 </head>
 <body>
@@ -251,6 +299,44 @@
 
   <!-- TAB 2: HÓA ĐƠN -->
   <div id="tab-hoadon" class="tab-pane">
+
+    <!-- UPLOAD ZONE -->
+    <div class="card">
+      <div class="card-title">Đọc tự động từ PDF hóa đơn</div>
+
+      <div class="upload-zone" id="upload_zone"
+           ondragover="event.preventDefault();this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)">
+        <input type="file" accept=".pdf" id="pdf_input" onchange="handleFileSelect(event)">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">Kéo thả hoặc click để chọn PDF hóa đơn</div>
+        <div class="upload-sub">Hệ thống tự đọc và điền thông tin — hỗ trợ hóa đơn điện tử MISA, VNPT, Viettel...</div>
+      </div>
+
+      <div id="file_tag_wrap" style="display:none;margin-bottom:10px">
+        <span class="file-tag">
+          <span id="file_name_label">invoice.pdf</span>
+          <span class="file-tag-rm" onclick="clearFile()">✕</span>
+        </span>
+      </div>
+
+      <!-- Trạng thái AI đang đọc -->
+      <div class="ai-reading" id="ai_reading">
+        <div class="ai-spin"></div>
+        <span id="ai_reading_text">AI đang đọc hóa đơn...</span>
+      </div>
+
+      <!-- Kết quả thành công -->
+      <div class="ai-success" id="ai_success">
+        <span>✅</span>
+        <span id="ai_success_text">Đã điền tự động từ hóa đơn. Kiểm tra lại các trường bên dưới.</span>
+      </div>
+
+      <!-- Lỗi đọc -->
+      <div class="error-box" id="ai_error"></div>
+    </div>
+
     <div class="card">
       <div class="card-title">Thông tin hóa đơn</div>
       <div class="g3">
@@ -419,6 +505,118 @@
 </div>
 
 <script>
+// ── PDF Upload & AI Reading ───────────────────────────────────────────────────
+let _selectedFile = null;
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload_zone').classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type === 'application/pdf') processFile(file);
+  else showAiError('Vui lòng chọn file PDF.');
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (file) processFile(file);
+}
+
+function processFile(file) {
+  _selectedFile = file;
+  document.getElementById('file_name_label').textContent = file.name;
+  document.getElementById('file_tag_wrap').style.display = 'block';
+  document.getElementById('upload_zone').style.display = 'none';
+  clearAiStatus();
+  readInvoice(file);
+}
+
+function clearFile() {
+  _selectedFile = null;
+  document.getElementById('pdf_input').value = '';
+  document.getElementById('file_tag_wrap').style.display = 'none';
+  document.getElementById('upload_zone').style.display = 'block';
+  clearAiStatus();
+}
+
+function clearAiStatus() {
+  document.getElementById('ai_reading').classList.remove('show');
+  document.getElementById('ai_success').classList.remove('show');
+  document.getElementById('ai_error').classList.remove('show');
+  document.getElementById('ai_error').textContent = '';
+}
+
+function showAiError(msg) {
+  document.getElementById('ai_reading').classList.remove('show');
+  document.getElementById('ai_success').classList.remove('show');
+  const el = document.getElementById('ai_error');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+async function readInvoice(file) {
+  clearAiStatus();
+  document.getElementById('ai_reading').classList.add('show');
+  document.getElementById('ai_reading_text').textContent = 'AI đang đọc hóa đơn...';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const resp = await fetch('/api/read-invoice', { method: 'POST', body: formData });
+    const json = await resp.json();
+
+    document.getElementById('ai_reading').classList.remove('show');
+
+    if (!resp.ok || !json.ok) {
+      showAiError('Lỗi: ' + (json.error || 'Không đọc được hóa đơn'));
+      return;
+    }
+
+    // Điền tự động vào form
+    const d = json.data;
+    const fields = {
+      so_hd:        d.so_hd,
+      ky_hieu_hd:   d.ky_hieu_hd,
+      ngay_hd:      d.ngay_hd,
+      nha_cung_cap: d.nha_cung_cap,
+      mst_ncc:      d.mst_ncc,
+      dc_ncc:       d.dc_ncc,
+      truoc_vat:    d.truoc_vat,
+      tien_vat:     d.tien_vat,
+    };
+    let filled = 0;
+    for (const [id, val] of Object.entries(fields)) {
+      const el = document.getElementById(id);
+      if (el && val !== undefined && val !== '') {
+        el.value = val;
+        el.style.background = '#f0fdf4';
+        setTimeout(() => el.style.background = '', 2500);
+        filled++;
+      }
+    }
+
+    // Cập nhật tháng thanh toán từ ngày HĐ nếu chưa có
+    if (d.thang_tt && !document.getElementById('thang_tt').value) {
+      document.getElementById('thang_tt').value = d.thang_tt;
+    }
+    // Cập nhật ngày tiếp khách từ ngày HĐ nếu chưa có
+    if (d.ngay_hd && !document.getElementById('ngay_tiep_khach').value) {
+      document.getElementById('ngay_tiep_khach').value = d.ngay_hd;
+      document.getElementById('ngay_to_trinh').value  = d.ngay_hd;
+    }
+
+    calcTotal();
+
+    // Hiện banner thành công
+    const successEl = document.getElementById('ai_success');
+    document.getElementById('ai_success_text').textContent =
+      `Đã tự động điền ${filled} trường từ hóa đơn. Kiểm tra lại trước khi tạo hồ sơ.`;
+    successEl.classList.add('show');
+
+  } catch (err) {
+    showAiError('Lỗi kết nối: ' + err.message);
+  }
+}
 function switchTab(id, el) {
   document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));

@@ -4,8 +4,23 @@ from docxtpl import DocxTemplate
 import io
 import os
 import zipfile
+import json
+import base64
+import re
 from datetime import datetime
 from utils import so_tien_bang_chu, format_date, format_currency
+
+# ── Claude API cho đọc hóa đơn ───────────────────────────────────────────────
+try:
+    import anthropic
+    _claude = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY", ""))
+except Exception:
+    _claude = None
+
+try:
+    import pdfplumber
+except Exception:
+    pdfplumber = None
 
 app = Flask(__name__)
 CORS(app)
@@ -15,6 +30,91 @@ TEMPLATE_DIR = os.path.join(os.path.dirname(__file__), "word_templates")
 @app.route("/")
 def index():
     return render_template("index.html")
+
+@app.route("/api/read-invoice", methods=["POST"])
+def read_invoice():
+    """
+    Nhận PDF hóa đơn, trích text bằng pdfplumber,
+    gửi Claude API để parse JSON các trường cần thiết.
+    """
+    if "file" not in request.files:
+        return jsonify({"error": "Không có file PDF"}), 400
+
+    pdf_file = request.files["file"]
+    if not pdf_file.filename.lower().endswith(".pdf"):
+        return jsonify({"error": "Vui lòng upload file PDF"}), 400
+
+    # ── Bước 1: Trích text từ PDF ────────────────────────────────────────────
+    try:
+        pdf_bytes = pdf_file.read()
+        text = ""
+        if pdfplumber:
+            with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text() or ""
+                    text += page_text + "\n"
+        if not text.strip():
+            return jsonify({"error": "Không đọc được nội dung PDF. Thử lại với file khác."}), 400
+    except Exception as e:
+        return jsonify({"error": f"Lỗi đọc PDF: {str(e)}"}), 500
+
+    # ── Bước 2: Claude API parse JSON ────────────────────────────────────────
+    if not _claude or not os.environ.get("ANTHROPIC_API_KEY"):
+        return jsonify({"error": "Chưa cấu hình ANTHROPIC_API_KEY"}), 500
+
+    prompt = f"""Bạn là trợ lý đọc hóa đơn điện tử Việt Nam. 
+Hãy đọc nội dung hóa đơn dưới đây và trích xuất các trường thông tin.
+Trả về DUY NHẤT một JSON object, không có text nào khác, không có markdown.
+
+Các trường cần trích xuất:
+- so_hd: số hóa đơn (chỉ số, bỏ số 0 đầu — ví dụ "00001739" → "1739")
+- ky_hieu_hd: ký hiệu hóa đơn (ví dụ "1C26MNC")
+- ngay_hd: ngày hóa đơn định dạng YYYY-MM-DD (ví dụ "2026-03-27")
+- nha_cung_cap: tên công ty bán hàng (tên đầy đủ)
+- mst_ncc: mã số thuế người bán
+- dc_ncc: địa chỉ người bán (rút gọn, bỏ "Số" đầu nếu có)
+- truoc_vat: tổng tiền trước VAT (chỉ số nguyên, không dấu chấm/phẩy)
+- tien_vat: tổng tiền VAT (chỉ số nguyên)
+- sau_vat: tổng tiền sau VAT (chỉ số nguyên)
+- thang_tt: tháng thanh toán dạng MM/YYYY (lấy từ ngày hóa đơn)
+
+Lưu ý:
+- Nếu hóa đơn có nhiều mức thuế suất, cộng tất cả lại
+- truoc_vat + tien_vat = sau_vat
+- Nếu không tìm thấy trường nào, để chuỗi rỗng ""
+- Chỉ trả về JSON thuần, không giải thích
+
+NỘI DUNG HÓA ĐƠN:
+{text[:3000]}
+"""
+
+    try:
+        resp = _claude.messages.create(
+            model="claude-sonnet-4-20250514",
+            max_tokens=800,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        raw = resp.content[0].text.strip()
+
+        # Lấy JSON từ response (phòng trường hợp có text thừa)
+        json_match = re.search(r'\{.*\}', raw, re.DOTALL)
+        if not json_match:
+            return jsonify({"error": "Claude không trả về JSON hợp lệ"}), 500
+
+        data = json.loads(json_match.group())
+
+        # Validate & clean số tiền
+        for key in ["truoc_vat", "tien_vat", "sau_vat"]:
+            val = str(data.get(key, "0")).replace(".", "").replace(",", "").strip()
+            data[key] = int(val) if val.isdigit() else 0
+
+        return jsonify({"ok": True, "data": data})
+
+    except json.JSONDecodeError as e:
+        return jsonify({"error": f"Lỗi parse JSON: {str(e)}", "raw": raw}), 500
+    except Exception as e:
+        return jsonify({"error": f"Lỗi Claude API: {str(e)}"}), 500
+
 
 @app.route("/api/generate", methods=["POST"])
 def generate_docs():
