@@ -164,7 +164,26 @@
     .topbar-title { font-size: 13px; }
   }
 
-  /* GDT BUTTON */
+  /* GDT COPY FIELDS */
+  .gdt-copy-field {
+    background:#fff;padding:10px 14px;cursor:pointer;
+    display:flex;align-items:center;gap:10px;
+    transition:background .12s;
+  }
+  .gdt-copy-field:hover { background:#eff6ff; }
+  .gcf-label { font-size:11px;color:#6b7280;min-width:110px;flex-shrink:0; }
+  .gcf-val   { font-size:13px;font-weight:600;color:#1e40af;flex:1;
+               font-family:var(--font-mono, monospace); }
+  .gcf-btn   {
+    font-size:11px;padding:3px 10px;background:none;
+    border:1px solid #bfdbfe;border-radius:5px;cursor:pointer;
+    color:#1d4ed8;white-space:nowrap;flex-shrink:0;
+    transition:background .12s;
+  }
+  .gcf-btn:hover    { background:#dbeafe; }
+  .gcf-btn.copied   { background:#16a34a;color:#fff;border-color:#16a34a; }
+
+
   .btn-gdt {
     padding: 9px 18px; background: #1e40af; color: #fff;
     border: none; border-radius: 8px; font-size: 13px; font-weight: 600;
@@ -435,32 +454,67 @@
 
       <!-- Bước 1: chưa có gì -->
       <div id="gdt_step1">
-        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.9;
-                    background:var(--bg);padding:12px 14px;border-radius:8px;
-                    border:1px solid var(--border)">
-          <strong style="color:var(--text)">Quy trình 3 bước:</strong><br>
-          <span style="color:#1d4ed8">①</span> Nhấn nút bên dưới → cửa sổ tra cứu GDT mở ra<br>
-          <span style="color:#1d4ed8">②</span> Nhập captcha → Tìm kiếm → thấy kết quả hóa đơn<br>
-          <span style="color:#1d4ed8">③</span> Nhấn
-          <kbd style="background:#e5e7eb;padding:1px 6px;border-radius:3px;font-size:11px">Ctrl+P</kbd>
-          →  <em>Save as PDF</em> → upload vào đây → hệ thống đính kèm vào ZIP
+
+        <!-- Panel thông tin điền vào GDT -->
+        <div id="gdt_info_panel" style="margin-bottom:14px;border:1.5px solid #bfdbfe;
+             border-radius:10px;overflow:hidden">
+          <div style="background:#1e40af;padding:8px 14px;display:flex;
+                      align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:600;color:#fff">
+              Thông tin điền vào trang GDT
+            </span>
+            <span style="font-size:11px;color:#bfdbfe">Click vào từng ô để copy</span>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#dbeafe">
+
+            <div class="gdt-copy-field" onclick="copyField('mst_ncc','btn_cp_mst')">
+              <div class="gcf-label">MST người bán</div>
+              <div class="gcf-val" id="gcf_mst">—</div>
+              <button class="gcf-btn" id="btn_cp_mst">Copy</button>
+            </div>
+
+            <div class="gdt-copy-field" onclick="copyField('ky_hieu_hd','btn_cp_kh')">
+              <div class="gcf-label">Ký hiệu hóa đơn</div>
+              <div class="gcf-val" id="gcf_kh">—</div>
+              <button class="gcf-btn" id="btn_cp_kh">Copy</button>
+            </div>
+
+            <div class="gdt-copy-field" onclick="copyField('so_hd','btn_cp_shd')">
+              <div class="gcf-label">Số hóa đơn</div>
+              <div class="gcf-val" id="gcf_shd">—</div>
+              <button class="gcf-btn" id="btn_cp_shd">Copy</button>
+            </div>
+
+            <div class="gdt-copy-field" onclick="copyFieldVal(document.getElementById('gcf_tong').textContent,'btn_cp_tong')">
+              <div class="gcf-label">Tổng tiền thanh toán</div>
+              <div class="gcf-val" id="gcf_tong">—</div>
+              <button class="gcf-btn" id="btn_cp_tong">Copy</button>
+            </div>
+
+          </div>
+          <div style="background:#eff6ff;padding:7px 14px;font-size:11px;color:#1d4ed8;
+                      display:flex;align-items:center;gap:6px">
+            <span>💡</span>
+            <span>Mở cửa sổ GDT → copy từng trường → paste vào form → nhập captcha → Tìm kiếm</span>
+          </div>
         </div>
 
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <!-- Nút mở popup -->
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
           <button class="btn-gdt" id="btn_open_gdt" onclick="openGdtPopup()">
             Mở cửa sổ tra cứu GDT
           </button>
-          <span id="gdt_prefill_note" style="display:none;font-size:12px;color:#16a34a;
-                background:#f0fdf4;padding:6px 10px;border-radius:6px;border:1px solid #86efac">
-            Điền sẵn: MST <strong id="note_mst"></strong>
-            · Số HĐ <strong id="note_shd"></strong>
-          </span>
+          <button onclick="copyAllFields()" id="btn_copy_all"
+                  style="font-size:12px;padding:8px 14px;background:none;color:#1d4ed8;
+                         border:1.5px solid #bfdbfe;border-radius:8px;cursor:pointer;font-weight:500">
+            Copy tất cả thông tin
+          </button>
         </div>
 
-        <!-- Upload zone luôn hiển thị sẵn -->
-        <div style="margin-top:14px">
+        <!-- Upload zone -->
+        <div>
           <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">
-            Sau khi lưu PDF tra cứu, upload vào đây:
+            Sau khi lưu PDF tra cứu (Ctrl+P → Save as PDF), upload vào đây:
           </div>
           <div class="upload-zone" id="tracuu_zone"
                ondragover="event.preventDefault();this.classList.add('drag-over')"
@@ -469,7 +523,7 @@
             <input type="file" accept=".pdf" id="tracuu_input" onchange="handleTracuuSelect(event)">
             <div class="upload-icon" style="font-size:22px">📋</div>
             <div style="font-size:13px;font-weight:500;color:var(--muted)">Kéo thả hoặc click để upload PDF tra cứu GDT</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">Tùy chọn — có thể bỏ qua nếu chưa có</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Tùy chọn — có thể bỏ qua</div>
           </div>
         </div>
       </div>
@@ -582,13 +636,70 @@ let _tracuuFile = null;
 let _gdtPopup   = null;
 let _gdtLink    = '';
 
+// Sync panel thông tin GDT từ form
+function syncGdtPanel() {
+  const mst   = g('mst_ncc');
+  const kh    = g('ky_hieu_hd');
+  const shd   = g('so_hd');
+  const tong  = (parseInt(g('truoc_vat'))||0) + (parseInt(g('tien_vat'))||0);
+
+  document.getElementById('gcf_mst').textContent  = mst  || '—';
+  document.getElementById('gcf_kh').textContent   = kh   || '—';
+  document.getElementById('gcf_shd').textContent  = shd  || '—';
+  document.getElementById('gcf_tong').textContent = tong ? tong.toLocaleString('vi-VN') : '—';
+}
+
+function copyField(inputId, btnId) {
+  const val = g(inputId);
+  if (!val) return;
+  copyFieldVal(val, btnId);
+}
+
+function copyFieldVal(val, btnId) {
+  if (!val || val === '—') return;
+  // Số tiền: bỏ dấu chấm để paste vào ô số
+  const clean = val.replace(/\./g,'').replace(/,/g,'');
+  navigator.clipboard.writeText(clean).then(() => {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    const old = btn.textContent;
+    btn.textContent = '✓ Đã copy';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = old;
+      btn.classList.remove('copied');
+    }, 1800);
+  });
+}
+
+function copyAllFields() {
+  const mst  = g('mst_ncc')  || '—';
+  const kh   = g('ky_hieu_hd') || '—';
+  const shd  = g('so_hd')    || '—';
+  const tong = ((parseInt(g('truoc_vat'))||0) + (parseInt(g('tien_vat'))||0)).toString();
+  const txt  = `MST người bán: ${mst}\nKý hiệu: ${kh}\nSố hóa đơn: ${shd}\nTổng tiền: ${tong}`;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = document.getElementById('btn_copy_all');
+    const old = btn.textContent;
+    btn.textContent = '✓ Đã copy tất cả';
+    btn.style.background = '#f0fdf4';
+    btn.style.color = '#15803d';
+    btn.style.borderColor = '#86efac';
+    setTimeout(() => {
+      btn.textContent = old;
+      btn.style.background = '';
+      btn.style.color = '#1d4ed8';
+      btn.style.borderColor = '#bfdbfe';
+    }, 2000);
+  });
+}
+
 function openGdtPopup() {
   const mst    = g('mst_ncc');
   const soHd   = g('so_hd');
   const kyHieu = g('ky_hieu_hd');
   const ngay   = g('ngay_hd');
 
-  // Build URL với tham số điền sẵn
   const params = new URLSearchParams({ nbmst: mst, khhdon: kyHieu, shdon: soHd });
   if (ngay) {
     const [y,m,d] = ngay.split('-');
@@ -596,66 +707,38 @@ function openGdtPopup() {
   }
   _gdtLink = `https://hoadondientu.gdt.gov.vn?${params}#/tra-cuu/tra-cuu-hoa-don-mua-vao`;
 
-  // Hiện note điền sẵn
-  if (mst || soHd) {
-    document.getElementById('gdt_prefill_note').style.display = 'inline-flex';
-    document.getElementById('note_mst').textContent = mst  || '—';
-    document.getElementById('note_shd').textContent = soHd || '—';
-  }
-
-  // Tính toán kích thước popup — chiếm 80% màn hình, căn giữa
   const W = Math.min(1100, Math.round(screen.width  * 0.82));
   const H = Math.min(820,  Math.round(screen.height * 0.85));
   const L = Math.round((screen.width  - W) / 2);
   const T = Math.round((screen.height - H) / 2);
 
-  // Đóng popup cũ nếu còn mở
   if (_gdtPopup && !_gdtPopup.closed) _gdtPopup.close();
 
   _gdtPopup = window.open(
-    _gdtLink,
-    'gdt_tracuu',
+    _gdtLink, 'gdt_tracuu',
     `width=${W},height=${H},left=${L},top=${T},` +
     `menubar=no,toolbar=no,location=yes,status=no,scrollbars=yes,resizable=yes`
   );
 
   if (!_gdtPopup || _gdtPopup.closed) {
-    // Popup bị block bởi trình duyệt
     alert('Trình duyệt đã chặn popup.\nVui lòng cho phép popup cho trang này và thử lại.');
     return;
   }
 
   _gdtPopup.focus();
 
-  // Hiện hướng dẫn bên dưới upload zone
-  showGdtGuide();
-}
+  // Đổi nút thành "Mở lại"
+  const btn = document.getElementById('btn_open_gdt');
+  btn.textContent = 'Mở lại cửa sổ GDT';
 
-function showGdtGuide() {
-  // Thêm banner hướng dẫn phía trên upload zone nếu chưa có
-  if (document.getElementById('gdt_guide_banner')) return;
-  const zone = document.getElementById('tracuu_zone');
-  const banner = document.createElement('div');
-  banner.id = 'gdt_guide_banner';
-  banner.style.cssText = `margin-bottom:10px;padding:10px 14px;background:#eff6ff;
-    border:1px solid #bfdbfe;border-radius:8px;font-size:12px;
-    color:#1e40af;line-height:1.9`;
-  banner.innerHTML = `
-    <strong style="color:#1d4ed8">Cửa sổ GDT đã mở!</strong>
-    Làm theo các bước sau rồi upload PDF vào đây:<br>
-    <span style="color:#1d4ed8">①</span> Nhập captcha → nhấn <strong>Tìm kiếm</strong><br>
-    <span style="color:#1d4ed8">②</span> Khi thấy kết quả, nhấn
-    <kbd style="background:#dbeafe;padding:1px 6px;border-radius:3px">Ctrl+P</kbd>
-    (Win) / <kbd style="background:#dbeafe;padding:1px 6px;border-radius:3px">⌘P</kbd>
-    (Mac) → chọn <strong>Save as PDF</strong> → lưu file<br>
-    <span style="color:#1d4ed8">③</span> Upload file PDF vừa lưu vào ô bên dưới
-    <button onclick="if(_gdtPopup&&!_gdtPopup.closed)_gdtPopup.focus();else openGdtPopup()"
-            style="float:right;font-size:11px;padding:3px 8px;background:#1d4ed8;color:#fff;
-                   border:none;border-radius:4px;cursor:pointer;margin-top:2px">
-      Mở lại cửa sổ GDT
-    </button>
-  `;
-  zone.parentNode.insertBefore(banner, zone);
+  // Highlight panel copy
+  const panel = document.getElementById('gdt_info_panel');
+  panel.style.borderColor = '#16a34a';
+  panel.style.boxShadow   = '0 0 0 3px rgba(22,163,74,.15)';
+  setTimeout(() => {
+    panel.style.borderColor = '#bfdbfe';
+    panel.style.boxShadow   = '';
+  }, 2500);
 }
 
 function handleTracuuDrop(e) {
@@ -673,40 +756,25 @@ function handleTracuuSelect(e) {
 
 function saveTracuuFile(file) {
   _tracuuFile = file;
-  // Đóng popup GDT nếu còn mở
   if (_gdtPopup && !_gdtPopup.closed) _gdtPopup.close();
-  // Ẩn step1, hiện saved
-  document.getElementById('gdt_step1').style.display    = 'none';
+  document.getElementById('gdt_step1').style.display     = 'none';
   document.getElementById('gdt_saved_wrap').style.display = 'block';
   document.getElementById('saved_filename').textContent   = `📄 ${file.name}`;
-  // Scroll nhẹ tới badge xanh
   document.getElementById('gdt_saved_wrap').scrollIntoView({ behavior:'smooth', block:'nearest' });
 }
 
 function resetTracuu() {
   _tracuuFile = null;
-  document.getElementById('tracuu_input').value = '';
-  document.getElementById('gdt_saved_wrap').style.display  = 'none';
-  document.getElementById('gdt_step1').style.display       = 'block';
-  const banner = document.getElementById('gdt_guide_banner');
-  if (banner) banner.remove();
+  document.getElementById('tracuu_input').value          = '';
+  document.getElementById('gdt_saved_wrap').style.display = 'none';
+  document.getElementById('gdt_step1').style.display     = 'block';
+  const btn = document.getElementById('btn_open_gdt');
+  if (btn) btn.textContent = 'Mở cửa sổ tra cứu GDT';
 }
 
-// Aliases cho tương thích với code cũ
 function clearTracuu()     { resetTracuu(); }
 function generateGdtLink() { openGdtPopup(); }
-function copyGdtLink() {
-  if (!_gdtLink) return;
-  navigator.clipboard.writeText(_gdtLink);
-}
-
-// Xóa các hàm iframe cũ không dùng
-function openGdtIframe()   {}
-function closeGdtIframe()  {}
-function reloadIframe()    {}
-function toggleIframeSize(){}
-function captureAndSave()  {}
-function showCaptureTip()  {}
+function copyGdtLink()     { if (_gdtLink) navigator.clipboard.writeText(_gdtLink); }
 
 
 let _selectedFile = null;
@@ -840,6 +908,7 @@ function calcTotal() {
   document.getElementById('d_vat').textContent   = fmt(b);
   document.getElementById('d_sau').textContent   = fmt(c);
   updateNguoi();
+  syncGdtPanel();
 }
 
 function updateNguoi() {
@@ -957,6 +1026,13 @@ async function generateDocs() {
 // Init
 calcTotal();
 updateNguoi();
+syncGdtPanel();
+
+// Sync GDT panel khi thay đổi các trường hóa đơn
+['mst_ncc','ky_hieu_hd','so_hd'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', syncGdtPanel);
+});
 </script>
 </body>
 </html>
